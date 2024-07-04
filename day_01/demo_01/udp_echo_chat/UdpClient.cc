@@ -4,6 +4,9 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <string.h>
+#include "Thread.hpp"
+
+using namespace ThreadModule;
 
 enum errorcode
 {
@@ -13,6 +16,52 @@ enum errorcode
 void Usage()
 {
     printf("Usage : ./udp_client serverip serverport\n");
+}
+
+class ThreadData
+{
+public:
+    ThreadData(int sock, struct sockaddr_in &server) : _sockfd(sock), _server(server) {}
+    ~ThreadData() {}
+
+public:
+    int _sockfd;
+    struct sockaddr_in _server;
+};
+
+void RecverRoute(ThreadData &td, std::string &message)
+{
+    while (true)
+    {
+        // 获取回应数据
+        char buff[1024];
+        struct sockaddr_in peer;
+        socklen_t len = sizeof(peer);
+        // ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen); // src_addr
+        ssize_t n = recvfrom(td._sockfd, buff, sizeof(buff), 0, (struct sockaddr *)&peer, &len);
+        if (n > 0)
+        {
+            buff[n] = 0;
+            std::cerr << buff << std::endl; // 方便重定位，分离发送窗口和接收窗口
+        }
+    }
+}
+
+void SenderRoute(ThreadData &td, std::string message)
+{
+    while (true)
+    {
+        std::cout << "Please Enter:# ";
+        std::getline(std::cin, message);
+        // 发送数据
+        // ssize_t sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen); // dest_addr
+        int n = sendto(td._sockfd, message.c_str(), message.size(), 0, (struct sockaddr *)&td._server, sizeof(td._server));
+        if (n <= 0)
+        {
+            std::cout << "sendto error" << std::endl;
+            break;
+        }
+    }
 }
 
 int main(int argc, char *argv[])
@@ -42,27 +91,41 @@ int main(int argc, char *argv[])
     // b.主机序列转网络序列
     // in_addr_t inet_addr(const char *cp);
     server.sin_addr.s_addr = inet_addr(serverip.c_str()); // sin_addr 是一个结构体，里面的成员是s_addr
-
-    std::string message;
     // 直接通信即可，已经自动绑定
-    while (true)
-    {
-        std::cout << "Please Enter:# ";
-        std::getline(std::cin, message);
-        // 发送数据
-        // ssize_t sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen); // dest_addr
-        sendto(sockfd, message.c_str(), message.size(), 0, (struct sockaddr *)&server, sizeof(server));
+    std::string message;
 
-        // 获取回应数据
-        char buff[1024];
-        struct sockaddr_in peer;
-        socklen_t len = sizeof(peer);
-        // ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen); // src_addr
-        ssize_t n = recvfrom(sockfd, buff, sizeof(buff), 0, (struct sockaddr *)&peer, &len);
-        if (n > 0)
-        {
-            buff[n] = 0;
-            std::cout << "Server Echo:# " << buff << std::endl;
-        }
-    }
+    // 创建两个线程，一个收消息，一个发消息
+    ThreadData td(sockfd, server);
+    auto boundRecv = std::bind(RecverRoute, td, std::placeholders::_1);
+    auto boundSend = std::bind(SenderRoute, td, std::placeholders::_1);
+    Thread recver(boundRecv, "recver");
+    recver.Start();
+    Thread sender(boundSend, "sender");
+    sender.Start();
+
+    // // udp是全双工的
+    // // 下面代码只能半双工，不能不能同时收发
+    // while (true)
+    // {
+    //     std::cout << "Please Enter:# ";
+    //     std::getline(std::cin, message);
+    //     // 发送数据
+    //     // ssize_t sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen); // dest_addr
+    //     sendto(sockfd, message.c_str(), message.size(), 0, (struct sockaddr *)&server, sizeof(server));
+
+    //     // 获取回应数据
+    //     char buff[1024];
+    //     struct sockaddr_in peer;
+    //     socklen_t len = sizeof(peer);
+    //     // ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen); // src_addr
+    //     ssize_t n = recvfrom(sockfd, buff, sizeof(buff), 0, (struct sockaddr *)&peer, &len);
+    //     if (n > 0)
+    //     {
+    //         buff[n] = 0;
+    //         std::cout << "Server Echo:# " << buff << std::endl;
+    //     }
+    // }
+
+    recver.Join();
+    sender.Join();
 }

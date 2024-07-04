@@ -111,10 +111,14 @@ public:
                 AddOnlineUser(addr);
 
                 // 转发
-                std::string message = buff;
-                auto task = std::bind(&UdpServer::Route,this,message); // 这里绑定后，task的参数就是void()
-                Threadpool<task_t>::GetInstance()->Enqueue(task); // 启动线程池
-
+                std::string message = "[";
+                message += addr.Ip();
+                message += ":";
+                message += std::to_string(addr.Port());
+                message += "] ";
+                message += buff;
+                auto task = std::bind(&UdpServer::Route, this, message); // 这里绑定后，task的参数就是void()
+                Threadpool<task_t>::GetInstance()->Enqueue(task);        // 启动线程池
 
                 LOG(DEBUG, "get message , sender:[%s:%d] , content: %s", addr.Ip().c_str(), addr.Port(), buff);
                 sendto(_sockfd, buff, strlen(buff), 0, (struct sockaddr *)&peer, len);
