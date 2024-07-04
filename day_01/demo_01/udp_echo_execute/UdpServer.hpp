@@ -67,6 +67,7 @@ public:
     {
         // 一直运行，直到管理者不想运行了， 服务器都是死循环
         // UDP是面向数据报的协议
+        
         _isrunning = true;
         while (true)
         {
