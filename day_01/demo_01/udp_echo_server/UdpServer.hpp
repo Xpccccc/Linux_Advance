@@ -11,6 +11,7 @@
 using namespace std;
 
 #include "Log.hpp"
+#include "InetAddr.hpp"
 
 const int Defaultfd = -1;
 
@@ -24,7 +25,8 @@ enum errorcode
 class UdpServer
 {
 public:
-    UdpServer(std::string ip, uint16_t port) : _sockfd(Defaultfd), _ip(ip), _port(port), _isrunning(false)
+    // UdpServer(std::string ip, uint16_t port) : _sockfd(Defaultfd), _ip(ip), _port(port), _isrunning(false)
+    UdpServer(uint16_t port) : _sockfd(Defaultfd), _port(port), _isrunning(false)
     {
     }
     void InitServer()
@@ -46,7 +48,8 @@ public:
         // a.字符串序列点分十进制IP地址 转换为 4字节IP
         // b.主机序列转网络序列
         // in_addr_t inet_addr(const char *cp);
-        local.sin_addr.s_addr = inet_addr(_ip.c_str()); // sin_addr 是一个结构体，里面的成员是s_addr
+        // local.sin_addr.s_addr = inet_addr(_ip.c_str()); // sin_addr 是一个结构体，里面的成员是s_addr
+        local.sin_addr.s_addr = INADDR_ANY; // 0 -- 链接当前服务器的所有ip都接受
         // 2.1. 绑定网络信息
         int n = bind(_sockfd, (struct sockaddr *)&local, sizeof(local));
         if (n < 0)
@@ -75,7 +78,8 @@ public:
                 buff[n] = 0;
                 // 回答发送方
                 // ssize_t sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen); // dest_addr
-                LOG(DEBUG, "get message : %s", buff);
+                InetAddr addr(peer);
+                LOG(DEBUG, "get message , sender:[%s:%d] , content: %s", addr.Ip().c_str(), addr.Port(), buff);
                 sendto(_sockfd, buff, strlen(buff), 0, (struct sockaddr *)&peer, len);
             }
         }
@@ -87,7 +91,7 @@ public:
 
 private:
     int _sockfd;
-    std::string _ip; // 暂时先这样写
+    // std::string _ip; // 暂时先这样写 -- 不需要
     uint16_t _port;
     bool _isrunning;
 };

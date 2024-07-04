@@ -6,8 +6,10 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
+#include "LockGuard.hpp"
 
 bool isSave = false; // 默认向显示器打印
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 #define FILEPATH "./log.txt"
 
 enum level
@@ -77,6 +79,7 @@ void LogMessage(const std::string filename, int line, bool issave, int level, co
     vsnprintf(buff, sizeof(buff), format, arg);
     va_end(arg);
 
+    LockGuard lock(&mutex);
     std::string message = "[" + timestr + "]" + "[" + levelstr + "]" + "[pid:" + std::to_string(pid) + "]" + "[" + filename + "]" + "[" + std::to_string(line) + "] " + buff + '\n';
     if (issave == false)
         std::cout << message;

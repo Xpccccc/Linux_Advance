@@ -12,7 +12,7 @@ enum errorcode
 
 void Usage()
 {
-    printf("./udp_client serverip serverport\n");
+    printf("Usage : ./udp_client serverip serverport\n");
 }
 
 int main(int argc, char *argv[])
