@@ -66,7 +66,7 @@ public:
         // 绑定成功
         LOG(INFO, "bind socket success !");
 
-        Threadpool<task_t>::GetInstance()->Start(); // 启动线程池
+        // Threadpool<task_t>::GetInstance()->Start(); // 启动线程池 // 单例模式GetInstance里面已经启动线程池了，直接放入任务即可
     }
 
     void AddOnlineUser(InetAddr user)
@@ -78,6 +78,16 @@ public:
                 return;
         }
         _online_user.push_back(user);
+    }
+
+    void DelOnlineUser(InetAddr user)
+    {
+        LockGuard lockguard(&_mutex);
+        for (auto iter = _online_user.begin(); iter != _online_user.end(); ++iter)
+        {
+            if (*iter == user)
+                _online_user.erase(iter);
+        }
     }
 
     void Route(std::string message)
@@ -108,7 +118,13 @@ public:
                 // 回答发送方
                 // ssize_t sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen); // dest_addr
                 InetAddr addr(peer);
-                AddOnlineUser(addr);
+                AddOnlineUser(addr); // 添加用户
+
+                if (!strcmp(buff, "QUIT"))
+                {
+                    DelOnlineUser(addr); // 删除用户
+                    continue;
+                }
 
                 // 转发
                 std::string message = "[";
@@ -117,11 +133,11 @@ public:
                 message += std::to_string(addr.Port());
                 message += "] ";
                 message += buff;
-                auto task = std::bind(&UdpServer::Route, this, message); // 这里绑定后，task的参数就是void()
-                Threadpool<task_t>::GetInstance()->Enqueue(task);        // 启动线程池
+                task_t task = std::bind(&UdpServer::Route, this, message); // 这里绑定后，task的参数就是void()，task就是绑定后的Route
+                Threadpool<task_t>::GetInstance()->Enqueue(task);          // 启动线程池
 
                 LOG(DEBUG, "get message , sender:[%s:%d] , content: %s", addr.Ip().c_str(), addr.Port(), buff);
-                sendto(_sockfd, buff, strlen(buff), 0, (struct sockaddr *)&peer, len);
+                // sendto(_sockfd, buff, strlen(buff), 0, (struct sockaddr *)&peer, len);
             }
         }
         _isrunning = false;
