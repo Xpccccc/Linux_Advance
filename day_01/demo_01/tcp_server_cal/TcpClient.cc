@@ -121,7 +121,7 @@ public:
                 // 6.反序列化
                 resp.DeSerialize(package); // 把_result,_flag赋值
                 // 7.处理返回数据
-                std::cout << "Server Echo$ " << "result : " << resp._result << " , flag :" << resp._flag << std::endl;
+                std::cout << "Server Echo$ " << "result : " << resp._result << " , flag :" << resp._flag << " --- equation : " << resp._equation << std::endl;
             }
         }
     }

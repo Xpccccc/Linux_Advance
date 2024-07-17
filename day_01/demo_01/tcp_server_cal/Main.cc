@@ -87,6 +87,20 @@ int main(int argc, char *argv[])
     }
 
     uint16_t serverport = std::stoi(argv[1]);
+
+    // __nochdir = 1:在当前工作目录执行
+    // __nochdir = 0:在根目录/工作目录执行
+    // __noclose = 1:不进行重定向
+    // __noclose = 0:进行重定向 /dev/null
+    // int daemon(int __nochdir, int __noclose)
+    // if(fork > 0) exit(0);
+    // setsid();
+    // 先创建子进程，再父进程退出，因为组长不能直接调用setsid();
+    daemon(0, 0);
+    // 执行下面的代码不是当前进程，而是当前进程的子进程
+
+    EnableFile();
+
     Calculate cal; // 应用层
     cal_t servercal = std::bind(&Calculate::Execute, &cal, placeholders::_1);
     Service sev(servercal);

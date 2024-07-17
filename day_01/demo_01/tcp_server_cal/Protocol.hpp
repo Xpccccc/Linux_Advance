@@ -7,9 +7,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+// #define SELF 1; // SELF=1就用自定义的序列化和反序列化，否则用默认的
+
+// 表示层
 namespace protocol_ns
 {
     const std::string SEP = "\r\n";
+    const std::string CAL_SEP = " ";
 
     // 对发送数据进行封装
     // "len\r\n{有效载荷}\r\n" -- 其中len是有效载荷的长度
@@ -66,6 +70,12 @@ namespace protocol_ns
         // "len\r\n{有效载荷}\r\n" -- 其中len是有效载荷的长度
         void Serialize(std::string *out) // 要带出来
         {
+#ifdef SELF
+            // "len\r\nx op y\r\n" -- 自定义序列化和反序列化
+            std::string data_x = std::to_string(_x);
+            std::string data_y = std::to_string(_y);
+            *out = data_x + CAL_SEP + _oper + CAL_SEP + data_y;
+#else
             Json::Value root;
             root["x"] = _x;
             root["y"] = _y;
@@ -75,11 +85,35 @@ namespace protocol_ns
             std::string str = writer.write(root);
 
             *out = str;
+#endif
         }
 
         // 反序列化 -- 解析
         bool DeSerialize(const std::string &in)
         {
+#ifdef SELF
+            auto left_blank_pos = in.find(CAL_SEP);
+            if (left_blank_pos == std::string::npos)
+                return false;
+            std::string x_str = in.substr(0, left_blank_pos);
+            if (x_str.empty())
+                return false;
+            auto right_blank_pos = in.rfind(CAL_SEP);
+
+            if (right_blank_pos == std::string::npos)
+                return false;
+            std::string y_str = in.substr(right_blank_pos + 1);
+            if (y_str.empty())
+                return false;
+            if (left_blank_pos + 1 + CAL_SEP.size() != right_blank_pos)
+                return false;
+
+            _x = std::stoi(x_str);
+            _y = std::stoi(y_str);
+            _oper = in[right_blank_pos - 1];
+            return true;
+
+#else
             Json::Value root;
             Json::Reader reader;
             if (!reader.parse(in, root))
@@ -88,6 +122,7 @@ namespace protocol_ns
             _y = root["y"].asInt();
             _oper = root["oper"].asInt();
             return true;
+#endif
         }
         ~Request() {}
 
@@ -104,32 +139,67 @@ namespace protocol_ns
         // 序列化 -- 转化为字符串发送
         void Serialize(std::string *out) // 要带出来
         {
+#ifdef SELF
+            // "len\r\nresult flag equation\r\n"
+            std::string data_res = std::to_string(_result);
+            std::string data_flag = std::to_string(_flag);
+            *out = data_res + CAL_SEP + data_flag + CAL_SEP + _equation;
+#else
             Json::Value root;
             root["result"] = _result;
             root["flag"] = _flag;
+            root["equation"] = _equation;
 
             Json::FastWriter writer;
             std::string str = writer.write(root);
 
             *out = str;
+#endif
         }
 
         // 反序列化 -- 解析
         bool DeSerialize(const std::string &in)
         {
+#ifdef SELF
+            // "result flag equation"
+
+            auto left_blank_pos = in.find(CAL_SEP);
+            if (left_blank_pos == std::string::npos)
+                return false;
+            std::string res_str = in.substr(0, left_blank_pos);
+            if (res_str.empty())
+                return false;
+
+            auto second_blank_pos = in.find(CAL_SEP, left_blank_pos + 1);
+            if (second_blank_pos == std::string::npos)
+                return false;
+            std::string equation = in.substr(second_blank_pos + 1);
+            if (equation.empty())
+                return false;
+
+            if (left_blank_pos + 1 + CAL_SEP.size() != second_blank_pos)
+                return false;
+            _result = std::stoi(res_str);
+            _flag = in[second_blank_pos - 1] - '0';
+            _equation = equation;
+            return true;
+#else
             Json::Value root;
             Json::Reader reader;
             if (!reader.parse(in, root))
                 return false;
             _result = root["result"].asInt();
             _flag = root["flag"].asInt();
+            _equation = root["equation"].asString();
             return true;
+#endif
         }
         ~Response() {}
 
     public:
         int _result = 0;
-        int _flag = 0; // 0表示操作符正确，1表示除0错误，2表示取模0错误，3表示操作符错误
+        int _flag = 0;                         // 0表示操作符正确，1表示除0错误，2表示取模0错误，3表示操作符错误
+        string _equation = "操作符不符合要求"; // 等式
     };
 
     const std::string opers = "+-*/%&^";
@@ -146,6 +216,7 @@ namespace protocol_ns
             req._x = rand() & 5 + 1;
             usleep(req._x * 20);
             req._y = rand() % 10 + 5;
+            // req._y = 0; // 测试
             usleep(req._x * req._y + 20);
             req._oper = opers[(rand() % opers.size())];
         }

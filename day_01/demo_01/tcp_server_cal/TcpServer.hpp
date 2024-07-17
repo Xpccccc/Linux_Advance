@@ -20,6 +20,7 @@ using namespace socket_ns;
 
 using service_t = std::function<void(socket_sptr sockfd, InetAddr client)>;
 
+// 会话层
 // 声明
 class TcpServer;
 
