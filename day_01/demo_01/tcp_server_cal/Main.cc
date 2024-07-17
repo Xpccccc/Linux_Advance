@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
     // int daemon(int __nochdir, int __noclose)
     // if(fork > 0) exit(0);
     // setsid();
-    // 先创建子进程，再父进程退出，因为组长不能直接调用setsid();
+    // 先创建子进程，再父进程退出，因为组长不能直接调用setsid();变成守护进程
     daemon(0, 0);
     // 执行下面的代码不是当前进程，而是当前进程的子进程
 
