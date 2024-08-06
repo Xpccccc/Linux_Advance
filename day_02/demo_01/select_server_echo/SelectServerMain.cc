@@ -10,7 +10,6 @@ int main(int argc, char *argv[])
     }
 
     uint16_t serverport = std::stoi(argv[1]);
-
     std::shared_ptr<SelectServer> selectserverpter = std::make_shared<SelectServer>(serverport);
     selectserverpter->Loop();
 }
